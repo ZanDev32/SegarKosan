@@ -1,0 +1,48 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ESP32-C3 Sensors</title>
+  <style>
+    body{font:14px system-ui,Segoe UI,Roboto,Arial}
+    .grid{display:grid;grid-template-columns:repeat(2, minmax(160px,1fr));gap:12px}
+    .card{border:1px solid #ccc;border-radius:10px;padding:12px}
+    .v{font-size:24px;font-weight:600}
+    .ts{color:#666;font-size:12px}
+  </style>
+</head>
+<body>
+  <h1>ESP32-C3 Sensors</h1>
+  <div class="grid">
+    <div class="card"><div>Temp</div><div id="t" class="v">–</div></div>
+    <div class="card"><div>Humidity</div><div id="h" class="v">–</div></div>
+    <div class="card"><div>Heat Index</div><div id="hi" class="v">–</div></div>
+    <div class="card"><div>CO₂</div><div id="co2" class="v">–</div></div>
+  </div>
+  <p class="ts">Last update: <span id="ts">–</span></p>
+
+  <script>
+  const ESP = 'http://192.168.1.45'; // GANTI dengan IP ESP kamu
+  const $ = sel => document.querySelector(sel);
+
+  async function tick(){
+    try{
+      const r = await fetch(ESP + '/state', { cache: 'no-store' });
+      if(!r.ok) throw new Error(r.status);
+      const j = await r.json(); // {t,h,hi,co2,ts}
+      $('#t').textContent  = Number(j.t).toFixed(1) + ' °C';
+      $('#h').textContent  = Number(j.h).toFixed(1) + ' %';
+      $('#hi').textContent = Number(j.hi).toFixed(1) + ' °C';
+      $('#co2').textContent= Number(j.co2).toFixed(0) + ' ppm';
+      $('#ts').textContent = new Date((j.ts||0)*1000).toLocaleTimeString();
+    }catch(e){
+      $('#ts').textContent = 'fetch error';
+      console.error(e);
+    }
+  }
+  tick();
+  setInterval(tick, 2000); // 2s polling
+  </script>
+</body>
+</html>
