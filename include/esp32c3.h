@@ -74,6 +74,10 @@ inline WebServer& server() {
 // Forward declaration for helper returning active IP
 inline IPAddress ip();
 
+// Store last used network config for reconnects
+inline Config& lastConfig() { static Config c; return c; }
+inline bool& hasConfig() { static bool init = false; return init; }
+
 // Stored callbacks
 inline ReadR0Func& cbReadR0() { static ReadR0Func f = nullptr; return f; }
 inline RecalibrateFunc& cbRecal() { static RecalibrateFunc f = nullptr; return f; }
@@ -351,6 +355,10 @@ inline void begin(const Config& cfg = Config{}) {
   });
 
   server().begin();
+
+  // Save config for later reconnects
+  lastConfig() = cfg;
+  hasConfig() = true;
 }
 
 // MQTT reconnect helper
@@ -437,6 +445,87 @@ inline IPAddress ip() {
   if (WiFi.getMode() & WIFI_MODE_AP)
     return WiFi.softAPIP();
   return IPAddress(0,0,0,0);
+}
+
+// Attempt to reconnect WiFi using the last provided Config
+inline bool reconnect() {
+  Serial.println(F("[NET] Reconnecting WiFi..."));
+  if (!hasConfig()) {
+    Serial.println(F("[NET] No previous config; call Net::begin() first"));
+    return false;
+  }
+
+  const Config& cfg = lastConfig();
+
+  auto ipSet = [](const IPAddress& ip){ return ip != IPAddress(0,0,0,0); };
+
+  // Ensure STA mode and clean disconnect
+  WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true, true);
+  delay(100);
+
+  // Apply static IP if provided (must be before WiFi.begin)
+  if (ipSet(cfg.sta_ip) && ipSet(cfg.sta_gw) && ipSet(cfg.sta_sn)) {
+    if (!WiFi.config(cfg.sta_ip, cfg.sta_gw, cfg.sta_sn,
+                     ipSet(cfg.sta_dns1) ? cfg.sta_dns1 : IPAddress(0,0,0,0),
+                     ipSet(cfg.sta_dns2) ? cfg.sta_dns2 : IPAddress(0,0,0,0))) {
+      Serial.println(F("[NET] WiFi.config (STA) failed"));
+    }
+  }
+  if (cfg.hostname && cfg.hostname[0]) {
+    WiFi.setHostname(cfg.hostname);
+  }
+  WiFi.begin(cfg.ssid, cfg.pass);
+
+  uint32_t t0 = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - t0 < cfg.sta_timeout_ms) {
+    delay(200);
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print(F("[NET] STA IP: ")); Serial.println(WiFi.localIP());
+    // Restart mDNS on reconnect
+    if (cfg.hostname && cfg.hostname[0]) {
+#if defined(ESP32)
+      MDNS.end();
+#endif
+      delay(100);
+      if (MDNS.begin(cfg.hostname)) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.print(F("[NET] mDNS: http://")); Serial.print(cfg.hostname); Serial.println(F(".local/"));
+      } else {
+        Serial.println(F("[NET] mDNS restart failed"));
+      }
+    }
+    return true;
+  }
+
+  // Optional AP fallback
+  if (cfg.enable_ap_fallback) {
+    Serial.println(F("[NET] STA reconnect failed, enabling SoftAP"));
+    WiFi.mode(WIFI_AP);
+    if (cfg.ap_ip != IPAddress(0,0,0,0) && cfg.ap_sn != IPAddress(0,0,0,0)) {
+      if (!WiFi.softAPConfig(cfg.ap_ip, cfg.ap_gw, cfg.ap_sn)) {
+        Serial.println(F("[NET] softAPConfig failed"));
+      }
+    }
+    WiFi.softAP(cfg.ap_ssid, cfg.ap_pass);
+#if defined(ESP32)
+    if (cfg.hostname && cfg.hostname[0]) {
+      WiFi.softAPsetHostname(cfg.hostname);
+      MDNS.end();
+      delay(100);
+      if (MDNS.begin(cfg.hostname)) {
+        MDNS.addService("http", "tcp", 80);
+        Serial.print(F("[NET] mDNS(AP): http://")); Serial.print(cfg.hostname); Serial.println(F(".local/"));
+      }
+    }
+#endif
+    Serial.print(F("[NET] SoftAP IP: ")); Serial.println(WiFi.softAPIP());
+  } else {
+    Serial.println(F("[NET] STA reconnect failed and AP fallback disabled"));
+  }
+  return false;
 }
 
 } // IMPORTANT namespace Net

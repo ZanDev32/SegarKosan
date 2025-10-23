@@ -1,3 +1,4 @@
+// Fallback to older MQ135 wrapper implementation
 #ifndef MQ135_WRAPPER_H
 #define MQ135_WRAPPER_H
 
@@ -29,11 +30,6 @@
 #define MQ135_RATIO_CLEAN_AIR 3.6f // Rs/R0 for clean air (typical)
 #endif
 
-// Load resistor value in kilo-ohms (most MQ-135 boards use 10k)
-#ifndef MQ135_RL
-#define MQ135_RL 10.0f
-#endif
-
 class MQ135Sensor {
 private:
 	MQUnifiedsensor mq;
@@ -51,13 +47,6 @@ public:
 		pinMode(digitalPin, INPUT);
 		mq.setRegressionMethod(1); // Exponential curve
 		mq.init();
-		mq.setRL(MQ135_RL); // Set load resistor
-		
-		Serial.print(F("[MQ135] Config: Board=")); Serial.print(MQ135_BOARD);
-		Serial.print(F(", V=")); Serial.print(MQ135_VOLTAGE_RESOLUTION);
-		Serial.print(F("V, ADC=")); Serial.print(MQ135_ADC_BIT_RESOLUTION);
-		Serial.print(F("bit, Pin=")); Serial.print(MQ135_ANALOG_PIN);
-		Serial.print(F(", RL=")); Serial.print(MQ135_RL); Serial.println(F("kΩ"));
 
 		float r0 = 0.0f;
 		for (unsigned long i = 0; i < calibrationSamples; i++) {
@@ -68,8 +57,6 @@ public:
 		r0 /= (float)calibrationSamples;
 		mq.setR0(r0);
 		calibrated = true;
-		
-		Serial.print(F("[MQ135] Calibration complete: R0=")); Serial.println(r0, 3);
 	}
 
 	// Update the sensor reading (reads the analog voltage internally)
@@ -77,60 +64,36 @@ public:
 		mq.update();
 	}
 
-	// Convenience getters for different target gases (ppm). (Phase 2)
+	// Convenience getters for different target gases (ppm). Choose the one you need.
 	float readCO2() {
-		// Direct calculation: ppm = A * (Rs/R0)^B
-		// MQ-135 CO2 regression curve from datasheet
-		const float A = 110.47f;
-		const float B = -2.862f;
-		
-		float rs = mq.getRS();
-		float r0 = mq.getR0();
-		float ratio = rs / r0;
-		
-		// Calculate ppm using power formula
-		float ppm = A * pow(ratio, B);
-		return ppm;
+		// Common MQ-135 CO2 approximation curve
+		mq.setA(110.47f); mq.setB(-2.862f);
+		return mq.readSensor();
 	}
 
 	float readNH3() {
-		// Direct calculation for Ammonia
-		const float A = 102.2f;
-		const float B = -2.473f;
-		float ratio = mq.getRS() / mq.getR0();
-		return A * pow(ratio, B);
+		mq.setA(102.2f); mq.setB(-2.473f);
+		return mq.readSensor();
 	}
 
 	float readAlcohol() {
-		// Direct calculation for Alcohol
-		const float A = 77.255f;
-		const float B = -3.18f;
-		float ratio = mq.getRS() / mq.getR0();
-		return A * pow(ratio, B);
+		mq.setA(77.255f); mq.setB(-3.18f);
+		return mq.readSensor();
 	}
 
 	float readCO() {
-		// Direct calculation for Carbon Monoxide
-		const float A = 605.18f;
-		const float B = -3.937f;
-		float ratio = mq.getRS() / mq.getR0();
-		return A * pow(ratio, B);
+		mq.setA(605.18f); mq.setB(-3.937f);
+		return mq.readSensor();
 	}
 
 	float readToluene() {
-		// Direct calculation for Toluene
-		const float A = 44.947f;
-		const float B = -3.445f;
-		float ratio = mq.getRS() / mq.getR0();
-		return A * pow(ratio, B);
+		mq.setA(44.947f); mq.setB(-3.445f);
+		return mq.readSensor();
 	}
 
 	float readAcetone() {
-		// Direct calculation for Acetone
-		const float A = 34.668f;
-		const float B = -3.369f;
-		float ratio = mq.getRS() / mq.getR0();
-		return A * pow(ratio, B);
+		mq.setA(34.668f); mq.setB(-3.369f);
+		return mq.readSensor();
 	}
 
 	// Digital output from the module's onboard comparator (threshold adjustable via potentiometer)
@@ -140,46 +103,6 @@ public:
 
 	bool isCalibrated() const { return calibrated; }
 	float getR0() { return mq.getR0(); }
-	
-	// Diagnostic helpers
-	int getRawADC() {
-		return analogRead(MQ135_ANALOG_PIN);
-	}
-	
-	float getVoltage() {
-		int adc = getRawADC();
-		return (adc / 4095.0) * MQ135_VOLTAGE_RESOLUTION;
-	}
-	
-	void printDiagnostics() {
-		int adc = getRawADC();
-		float voltage = getVoltage();
-		float r0 = getR0();
-		float rs = mq.getRS();
-		float ratio = rs / r0;
-		
-		Serial.print(F("[MQ135] ADC=")); Serial.print(adc);
-		Serial.print(F(" V=")); Serial.print(voltage, 3);
-		Serial.print(F("V R0=")); Serial.print(r0, 3);
-		Serial.print(F(" Rs=")); Serial.print(rs, 3);
-		Serial.print(F(" Rs/R0=")); Serial.println(ratio, 3);
-	}
-
-	// next phase
-	int calculateOdorScore(int airQuality) {
-		// MQ-135: Lower value = worse air quality
-		// Convert 0-1023 → 0-100 score
-		int aqScore = map(airQuality, 0, 1023, 0, 100);
-		return aqScore;
-	}
-
-	// next phase
-	String detectOdorType(int airquality, float humidity) {
-		if (humidity > 80 && airquality < 300) return "LEMBAB";
-		if (airquality < 200) return "ASAP";
-		if (airquality > 800) return "FRESH";
-		return "NORMAL";
-	}
 };
 
 #endif // MQ135_WRAPPER_H

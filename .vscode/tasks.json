@@ -1,0 +1,20 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Upload (Smart-Odor-Detection)",
+			"type": "shell",
+			"command": "platformio run --target upload --environment Smart-Odor-Detection",
+			"isBackground": false,
+			"problemMatcher": [
+				"$platformio"
+			]
+		},
+		{
+			"label": "Build and Upload (Smart-Odor-Detection)",
+			"type": "shell",
+			"command": "platformio run --target upload --environment Smart-Odor-Detection",
+			"isBackground": false
+		}
+	]
+}

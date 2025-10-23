@@ -90,7 +90,7 @@ void setup() {
   Net::Config cfg;
   cfg.ssid = "morning";
   cfg.pass = "mieayam9";
-  cfg.hostname = "odor-sensor"; // mDNS: http://odor-sensor.local/ 
+  cfg.hostname = "SegarKosan"; // mDNS: http://SegarKosan.local/ 
   // cfg.sta_ip = IPAddress(192,168,23,230);
   // cfg.sta_gw = IPAddress(192,168,1,1);
   // cfg.sta_sn = IPAddress(255,255,255,0);
@@ -137,13 +137,29 @@ void loop() {
   delay(1500);
   Net::handle();
   
+  // Simple serial command handler
   if (Serial.available()) {
-  String cmd = Serial.readStringUntil('\n');
-  if (cmd == "restart") {
-    Serial.println("Restarting...");
-    ESP.restart();
+    String cmd = Serial.readStringUntil('\n');
+    cmd.trim();
+    cmd.toLowerCase();
+    if (cmd == "reboot" || cmd == "restart" || cmd == "reset") {
+      Serial.println(F("[CMD] Reboot requested"));
+      delay(50);
+      ESP.restart();
+    } else if (cmd == "reconnect" || cmd == "wifi reconnect") {
+      Serial.println(F("[CMD] WiFi reconnect requested"));
+      bool ok = Net::reconnect();
+      Serial.print(F("[CMD] Reconnect result: ")); Serial.println(ok ? F("OK") : F("FAIL"));
+    } else if (cmd == "help" || cmd == "?" ) {
+      Serial.println(F("Commands:"));
+      Serial.println(F("  reconnect           - Reconnect WiFi (uses last config)"));
+      Serial.println(F("  reboot|restart|reset- Reboot the ESP32-C3"));
+      Serial.println(F("  help                - Show this help"));
+    } else if (cmd.length() > 0) {
+      Serial.print(F("[CMD] Unknown: ")); Serial.println(cmd);
+      Serial.println(F("Type 'help' for commands."));
+    }
   }
-}
   
   // Read sensor data
   float humidity = dht22.readHumidity();
@@ -151,11 +167,10 @@ void loop() {
   // Update MQ135 first, then read a gas value (CO2 approximation)
   mq135.update();
   
-  // Print diagnostics every 10 loops to check sensor health
+  // Optional: simple loop counter for periodic debug if needed
   static int loopCount = 0;
   if (++loopCount >= 10) {
     loopCount = 0;
-    mq135.printDiagnostics();
   }
   
   // Simple moving average over N samples to reduce spikes
@@ -165,11 +180,7 @@ void loop() {
   static int filled = 0;
   float co2_raw = mq135.readCO2();
   
-  // Debug: print raw CO2 reading every 10 loops
-  if (loopCount == 0) {
-    Serial.print(F("[DEBUG] Raw CO2 from readCO2(): "));
-    Serial.println(co2_raw, 3);
-  }
+  // Debug hook left empty to keep timing comparable when needed
   
   buf[idx] = co2_raw;
   idx = (idx + 1) % N;
@@ -211,7 +222,7 @@ void loop() {
   Net::update(temperature, humidity, heatIndex, isfinite(co2ppm) ? co2ppm : 0);
   
   // Publish to MQTT if configured (uses stored cfg values from setup)
-  // Will auto-reconnect and respect interval
+  // Will auto-reconnect and respect intervalc
   static const char* mqttClientId = "room67";
   static const char* mqttUser = nullptr;
   static const char* mqttPass = nullptr;
