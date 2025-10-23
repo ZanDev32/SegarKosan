@@ -6,7 +6,7 @@ This ESP32-C3 device provides a RESTful HTTP API and MQTT publishing for monitor
 
 ## Base URL
 
-- **mDNS**: `http://smart-kosan-odor-detection.local/`
+- **mDNS**: `http://segarkosan.local/`
 - **IP Address**: Use the IP printed on serial console during boot (check `/net` endpoint)
 - **Default Port**: `80`
 
@@ -293,7 +293,7 @@ Basic WiFi configuration in `Arduino.ino`:
 Net::Config cfg;
 cfg.ssid = "YourWiFi";
 cfg.pass = "YourPassword";
-cfg.hostname = "smart-kosan-odor-detection";
+cfg.hostname = "segarkosan";
 ```
 
 ### Static IP Setup
@@ -382,20 +382,20 @@ If WiFi connection fails, the device automatically creates an access point:
 import requests
 
 # Get current sensor state
-response = requests.get('http://smart-kosan-odor-detection.local/state')
+response = requests.get('http://segarkosan.local/state')
 data = response.json()
 print(f"Temperature: {data['t']}°C")
 print(f"CO2: {data['co2']} ppm")
 
 # Check MQTT status
-response = requests.get('http://smart-kosan-odor-detection.local/mqtt')
+response = requests.get('http://segarkosan.local/mqtt')
 mqtt_status = response.json()
 print(f"MQTT Connected: {mqtt_status['connected']}")
 print(f"Last Publish: {mqtt_status['lastPublish']}ms ago")
 
 # Recalibrate sensor (blocking for ~13 seconds)
 response = requests.get(
-    'http://smart-kosan-odor-detection.local/mq/recalibrate',
+    'http://segarkosan.local/mq/recalibrate',
     params={'s': 100, 'i': 100, 'w': 3000}
 )
 print(f"New R0: {response.json()['r0']}")
@@ -404,7 +404,7 @@ print(f"New R0: {response.json()['r0']}")
 #### JavaScript (Browser/Node.js)
 ```javascript
 // Fetch sensor state
-fetch('http://smart-kosan-odor-detection.local/state')
+fetch('http://segarkosan.local/state')
   .then(res => res.json())
   .then(data => {
     console.log(`Temperature: ${data.t}°C`);
@@ -413,12 +413,12 @@ fetch('http://smart-kosan-odor-detection.local/state')
   });
 
 // Get network info
-fetch('http://smart-kosan-odor-detection.local/net')
+fetch('http://segarkosan.local/net')
   .then(res => res.json())
   .then(data => console.log('Device IP:', data.ip));
 
 // Check MQTT status
-fetch('http://smart-kosan-odor-detection.local/mqtt')
+fetch('http://segarkosan.local/mqtt')
   .then(res => res.json())
   .then(data => console.log('MQTT:', data));
 ```
@@ -426,19 +426,19 @@ fetch('http://smart-kosan-odor-detection.local/mqtt')
 #### cURL
 ```bash
 # Get sensor state
-curl http://smart-kosan-odor-detection.local/state
+curl http://segarkosan.local/state
 
 # Get network information
-curl http://smart-kosan-odor-detection.local/net
+curl http://segarkosan.local/net
 
 # Get MQTT status
-curl http://smart-kosan-odor-detection.local/mqtt
+curl http://segarkosan.local/mqtt
 
 # Get current R0
-curl http://smart-kosan-odor-detection.local/mq/r0
+curl http://segarkosan.local/mq/r0
 
 # Recalibrate with custom parameters
-curl "http://smart-kosan-odor-detection.local/mq/recalibrate?s=200&i=100&w=5000"
+curl "http://segarkosan.local/mq/recalibrate?s=200&i=100&w=5000"
 ```
 
 ### MQTT Subscriber
@@ -546,6 +546,39 @@ client.on('message', (topic, message) => {
 - Device will fallback to AP mode (connect to `ESP32C3-AP`)
 - Check serial console for connection status
 - Verify 2.4GHz WiFi (ESP32-C3 doesn't support 5GHz)
+
+---
+
+## Serial Command Interface
+
+The device supports simple commands over the USB serial port for maintenance.
+
+- Default baud: 9600
+- Newline-terminated commands (press Enter)
+- Case-insensitive
+
+### Commands
+
+- `reconnect` or `wifi reconnect` — Reconnect WiFi using the last configuration supplied to `Net::begin()`.
+- `reboot`, `restart`, or `reset` — Reboot the ESP32-C3.
+- `help` — Show available commands.
+
+### Example (PlatformIO CLI)
+
+```bash
+pio device monitor --baud 9600
+# Type commands and press Enter, e.g.:
+reconnect
+```
+
+### Example Output
+
+```
+[CMD] WiFi reconnect requested
+[NET] Reconnecting WiFi...
+[NET] STA IP: 192.168.1.42
+[CMD] Reconnect result: OK
+```
 
 ### Memory Issues
 - If device crashes/resets frequently, reduce MQTT publish frequency

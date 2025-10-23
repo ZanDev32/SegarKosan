@@ -48,6 +48,7 @@ All data is transmitted via MQTT/HTTP to a local backend server, stored in Mongo
 - 📱 **Web Dashboard**: Real-time gauges and metrics display
 - 🖥️ **OLED Display**: Local display using SH1106 screen
 - 🌐 **mDNS Support**: Easy device discovery on local network
+ - 🧰 **Serial Control**: USB serial commands for WiFi reconnect and device reboot
 - ⚡ **Low Power**: Optimized for continuous operation
 
 ## 🔧 Hardware Components
@@ -201,7 +202,7 @@ SH1106 OLED (I2C):
 10. **Monitor serial output**:
     - Click the **🔌 Serial Monitor** icon in the PlatformIO toolbar
     - Or press `Ctrl+Alt+S` (Windows/Linux) / `Cmd+Alt+S` (Mac)
-    - Set baud rate to **115200** (default in this project)
+   - Set baud rate to **9600** (default in this project)
     - Watch for WiFi connection status and sensor readings
 
 #### Option 2: Using PlatformIO CLI
@@ -246,7 +247,7 @@ SH1106 OLED (I2C):
    ```bash
    pio device monitor
    # Or with specific baud rate
-   pio device monitor --baud 115200
+   pio device monitor --baud 9600
    ```
 
 7. **Build + Upload + Monitor (all in one)**:
@@ -363,7 +364,7 @@ curl http://smart-kosan-odor-detection.local/state
 
 1. **Power on the device**
 2. **Check serial monitor** for WiFi connection status
-3. **Note the IP address** or use mDNS: `smart-kosan-odor-detection.local`
+3. **Note the IP address** or use mDNS: `SegarKosan.local`
 4. **Access web dashboard** at the displayed URL
 5. **Verify sensor readings** on OLED display
 
@@ -381,6 +382,16 @@ curl http://smart-kosan-odor-detection.local/state
 - **OLED Display**: Local sensor readings
 - **Web Dashboard**: Comprehensive data visualization
 - **MQTT**: Subscribe to topic for real-time data stream
+
+### Serial Commands
+
+Open the Serial Monitor and set baud rate to 9600 (as configured in `setup()`). Supported commands (type and press Enter):
+
+- `reconnect` or `wifi reconnect` — Reconnect WiFi using the last configuration passed to `Net::begin()`.
+- `reboot`, `restart`, or `reset` — Reboot the ESP32-C3.
+- `help` — Show available commands.
+
+The device prints acknowledgements prefixed with `[CMD]`, e.g. `[CMD] Reconnect result: OK`.
 
 ## 🔄 Data Flow
 
