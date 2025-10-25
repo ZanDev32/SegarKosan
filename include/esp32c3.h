@@ -22,7 +22,7 @@ struct Config {
   const char* ap_pass   = "pass12345";   // min 8 char
   bool        enable_ap_fallback = true; // SoftAP jika STA gagal
   bool        enable_cors = true;        // Access-Control-Allow-Origin: *
-  uint32_t    sta_timeout_ms = 8000;     // tunggu koneksi STA
+  uint32_t    sta_timeout_ms = 10000;     // tunggu koneksi STA
 
   // Optional: Static IP settings for STA mode (use DHCP if 0.0.0.0)
   IPAddress   sta_ip   = IPAddress(0,0,0,0);
@@ -247,6 +247,7 @@ inline void _handleMqtt() {
 inline void begin(const Config& cfg = Config{}) {
   // Mode STA
   WiFi.mode(WIFI_STA);
+  WiFi.setTxPower(WIFI_POWER_8_5dBm);
 
   auto ipSet = [](const IPAddress& ip){ return ip != IPAddress(0,0,0,0); };
 

@@ -89,7 +89,7 @@ void setup() {
 
   Net::Config cfg;
   cfg.ssid = "morning";
-  cfg.pass = "mieayam9";
+  cfg.pass = "12345678";
   cfg.hostname = "SegarKosan"; // mDNS: http://SegarKosan.local/ 
   // cfg.sta_ip = IPAddress(192,168,23,230);
   // cfg.sta_gw = IPAddress(192,168,1,1);
@@ -126,7 +126,7 @@ void setup() {
     delay(100);
   }
 
-  if (WiFi.status() == !WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED) {
     Serial.println("WiFi connect failed");
     WiFi.disconnect(true, true);
   }
